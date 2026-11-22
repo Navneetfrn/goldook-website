@@ -65,6 +65,16 @@
   .toast { position: fixed; right: 16px; bottom: 16px; background: var(--surface2); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 14px; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 20; }
   details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 8px; }
   .err { color: var(--bad); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .kpi { background: var(--surface); border: 1px solid var(--surface3); border-radius: 12px; padding: 11px 13px; }
+  .kpi .cat { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .kpi .name { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .kpi .v { font-size: 22px; font-weight: 700; margin: 3px 0 1px; }
+  .kpi .v.na { font-size: 13px; font-weight: 500; color: var(--faint); }
+  .kpi .d { font-size: 11px; color: var(--muted); }
+  .form { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+  .form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .form input { background: var(--surface2); border: 1px solid var(--surface3); border-radius: 9px; padding: 8px 10px; }
   @media (max-width: 600px) { .tile .v { font-size: 20px; } header h1 { font-size: 17px; } .controls input[type=search] { min-width: 0; width: 100%; } }
 </style>
 </head>
@@ -82,6 +92,29 @@
 
 <main id="main" class="wrap" hidden>
   <div class="tiles" id="tiles"></div>
+
+  <h2><span class="grow">Success metrics</span><span class="muted small">Retention, engagement and NPS: last 30–90 days. Money: the month below.</span></h2>
+  <div class="kpis" id="kpis"></div>
+  <p class="muted small">Note: with very few users these percentages jump around; they settle once there are a few hundred users a month. “—” means there isn't enough data yet.</p>
+
+  <h2><span class="grow">Monthly business numbers</span><span class="muted small">Type these in once a month — the app can't see your bank or ad accounts</span></h2>
+  <div class="card">
+    <form class="form" id="finForm" onsubmit="return false">
+      <label>Month <input type="month" name="month" required></label>
+      <label>Marketing spend (₹) <input type="number" min="0" name="marketing_spend" placeholder="0"></label>
+      <label>App installs <input type="number" min="0" name="installs" placeholder="Play + App Store"></label>
+      <label>Revenue (₹) <input type="number" min="0" name="revenue" placeholder="0"></label>
+      <label>Recurring revenue (₹) <input type="number" min="0" name="recurring_revenue" placeholder="subscriptions"></label>
+      <label>Paying customers <input type="number" min="0" name="paying_customers" placeholder="0"></label>
+      <label>New paying customers <input type="number" min="0" name="new_paying_customers" placeholder="0"></label>
+      <button class="btn gold" id="finSave" type="button">Save month</button>
+    </form>
+    <p class="small" id="finMsg" style="margin:8px 0 0"></p>
+  </div>
+  <div class="tablewrap" style="margin-top:10px"><table id="monthly"></table></div>
+
+  <h2><span class="grow">What people say (NPS)</span></h2>
+  <div class="tablewrap"><table id="npsTable"></table></div>
 
   <h2><span class="grow">Growth &amp; activity</span>
     <span class="seg" id="range">
@@ -143,7 +176,7 @@ const num = (n, d = 0) => (Number(n) || 0).toLocaleString("en-IN", { maximumFrac
 const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
-let users = [], leads = [], daily = [], overview = null, days = 30;
+let users = [], leads = [], daily = [], overview = null, days = 30, kpis = null, monthly = [], npsRows = [], finMonth = null;
 let sortKey = "current_value";
 let seen = null, started = false; // { users, leads } counts from the previous check, for alerts
 
@@ -176,14 +209,15 @@ $("notifyBtn").onclick = async () => { const p = await Notification.requestPermi
 
 // ---------- Data ----------
 async function loadAll(quiet) {
-  const [o, d, u, l] = await Promise.all([
+  const [o, d, u, l, k, m, n] = await Promise.all([
     db.rpc("admin_overview"), db.rpc("admin_daily", { p_days: days }), db.rpc("admin_users"), db.rpc("admin_leads", { p_limit: 200 }),
+    db.rpc("admin_kpis"), db.rpc("admin_monthly", { p_months: 12 }), db.rpc("admin_nps_comments", { p_limit: 100 }),
   ]);
-  const err = [o, d, u, l].find((r) => r.error);
+  const err = [o, d, u, l, k, m, n].find((r) => r.error);
   if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
-  overview = o.data; daily = d.data; users = u.data; leads = l.data;
+  overview = o.data; daily = d.data; users = u.data; leads = l.data; kpis = k.data; monthly = m.data; npsRows = n.data;
   alertIfNew();
-  renderTiles(); renderCharts(); renderUsers(); renderLeads();
+  renderTiles(); renderKpis(); renderMonthly(); renderNps(); renderCharts(); renderUsers(); renderLeads();
 }
 async function loadDaily() {
   const { data, error } = await db.rpc("admin_daily", { p_days: days });
@@ -222,6 +256,87 @@ function renderTiles() {
   ];
   $("tiles").innerHTML = t.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
   $("rateNote").textContent = o.gold_24k_per_gram ? `24K ${inr(o.gold_24k_per_gram)}/g` : "no price yet";
+}
+
+// ---------- Success metrics ----------
+const pct = (a, b) => (b > 0 ? Math.round((1000 * a) / b) / 10 + "%" : null);
+const monthLabel = (m) => new Date(m + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+// Money KPIs for one month row (null where the inputs are missing).
+function money(r) {
+  if (!r) return {};
+  const spend = Number(r.marketing_spend) || 0, rev = Number(r.revenue) || 0, paying = r.paying_customers || 0;
+  const churn = r.churn_pct != null ? r.churn_pct / 100 : (kpis && kpis.churn_prev ? kpis.churn_lost / kpis.churn_prev : null);
+  const cac = r.new_paying_customers > 0 && spend > 0 ? spend / r.new_paying_customers : null;
+  const revPerPaying = paying > 0 ? rev / paying : null;
+  const ltv = revPerPaying != null && churn > 0 ? revPerPaying / churn : null;
+  return {
+    cac, cpi: r.installs > 0 && spend > 0 ? spend / r.installs : null,
+    conv: r.mau > 0 && r.paying_customers != null && r.marketing_spend != null ? pct(paying, r.mau) : null,
+    arpu: r.mau > 0 && r.revenue != null ? rev / r.mau : null,
+    mrr: r.recurring_revenue != null ? Number(r.recurring_revenue) : null,
+    ltv, ltvCac: ltv != null && cac ? ltv / cac : null,
+    payback: cac && revPerPaying ? cac / revPerPaying : null,
+    hasInputs: r.marketing_spend != null,
+  };
+}
+function renderKpis() {
+  const k = kpis, o = overview;
+  const ret = (n) => { const r = k.retention?.["d" + n]; return r && r.eligible ? [pct(r.kept, r.eligible), `${r.kept} of ${r.eligible} who joined ${n} day${n > 1 ? "s" : ""}+ ago came back on day ${n}`] : [null, `Needs people who joined ${n}+ day${n > 1 ? "s" : ""} ago`]; };
+  const npsScore = k.nps_n ? Math.round((100 * (k.nps_promoters - k.nps_detractors)) / k.nps_n) : null;
+  const viral = k.users_30_ago > 0 ? (k.referred_30 / k.users_30_ago).toFixed(2) : null;
+  const row = monthly.find((r) => r.month === finMonth) || monthly.find((r) => r.marketing_spend != null) || monthly[0];
+  const mo = money(row), ml = row ? monthLabel(row.month) : "";
+  const need = mo.hasInputs ? "Needs more numbers for " + ml : "Type in " + ml + "'s numbers below";
+  const list = [
+    ["Acquisition", "Customer Acquisition Cost (CAC)", mo.cac != null ? inr(mo.cac) : null, mo.cac != null ? `${ml}: marketing ÷ new paying customers` : need],
+    ["Acquisition", "Cost per Install (CPI)", mo.cpi != null ? inr(mo.cpi) : null, mo.cpi != null ? `${ml}: marketing ÷ installs` : need],
+    ["Activation", "Activation rate", pct(k.activated_30, k.signups_30), `${k.activated_30} of ${k.signups_30} new users (30 days) added an item within a week`],
+    ["Engagement", "Daily Active Users (DAU)", num(o.active_today), `Today · 30-day average ${num(k.avg_dau_30, 1)}`],
+    ["Engagement", "DAU / MAU", k.mau ? pct(k.avg_dau_30, k.mau) : null, `Average DAU ÷ ${num(k.mau)} monthly active users. 20%+ is good`],
+    ["Retention", "D1 retention", ...ret(1)],
+    ["Retention", "D7 retention", ...ret(7)],
+    ["Retention", "D30 retention", ...ret(30)],
+    ["Retention", "Churn rate (30 days)", pct(k.churn_lost, k.churn_prev), k.churn_prev ? `${k.churn_lost} of ${k.churn_prev} active 31–60 days ago didn't come back` : "Needs 60 days of activity"],
+    ["Monetization", "Paid conversion rate", mo.conv, mo.conv ? `${ml}: paying customers ÷ monthly active users` : need],
+    ["Monetization", "ARPU", mo.arpu != null ? inr(mo.arpu) : null, mo.arpu != null ? `${ml}: revenue ÷ monthly active users` : need],
+    ["Monetization", "MRR", mo.mrr != null ? inr(mo.mrr) : null, mo.mrr != null ? `${ml}: recurring revenue` : need],
+    ["Profitability", "Customer Lifetime Value (LTV)", mo.ltv != null ? inr(mo.ltv) : null, mo.ltv != null ? "Revenue per paying customer a month ÷ monthly churn" : "Needs revenue, paying customers and churn"],
+    ["Profitability", "LTV / CAC", mo.ltvCac != null ? mo.ltvCac.toFixed(1) + "×" : null, mo.ltvCac != null ? "3× or more is healthy" : "Needs LTV and CAC"],
+    ["Profitability", "CAC payback period", mo.payback != null ? mo.payback.toFixed(1) + " months" : null, mo.payback != null ? "CAC ÷ revenue per paying customer a month" : "Needs CAC and revenue"],
+    ["Satisfaction", "Net Promoter Score (NPS)", npsScore != null ? (npsScore > 0 ? "+" : "") + npsScore : null, k.nps_n ? `${k.nps_n} answers (90 days): ${k.nps_promoters} promoters, ${k.nps_detractors} detractors` : "Asked in the app after 7 days and 3 visits"],
+    ["Growth", "Referral / viral coefficient", viral, k.users_30_ago > 0 ? `${k.referred_30} joined from invite links (30 days) ÷ ${k.users_30_ago} earlier users` : `${k.referred_30} joined from invite links so far`],
+  ];
+  $("kpis").innerHTML = list.map(([c, n, v, d]) => `<div class="kpi"><div class="cat">${c}</div><div class="name">${n}</div><div class="v ${v == null ? "na" : ""}">${v ?? "—"}</div><div class="d">${esc(d)}</div></div>`).join("")
+    + (k.top_referrers?.length ? `<div class="kpi"><div class="cat">Growth</div><div class="name">Top inviters</div><div class="d" style="margin-top:6px">${k.top_referrers.map((t) => `${esc(t.name || "—")}: <b>${t.n}</b>`).join("<br>")}</div></div>` : "");
+}
+function renderMonthly() {
+  const f = $("finForm");
+  if (!f.month.value) { const r = monthly[0]; f.month.value = r.month.slice(0, 7); fillFin(r); }
+  $("monthly").innerHTML = `<thead><tr><th>Month</th><th class="num">New users</th><th class="num">MAU</th><th class="num">Churn</th><th class="num">Marketing</th><th class="num">Installs</th><th class="num">Revenue</th><th class="num">MRR</th><th class="num">Paying</th><th class="num">CAC</th><th class="num">CPI</th><th class="num">ARPU</th><th class="num">Conversion</th></tr></thead><tbody>` +
+    monthly.map((r) => { const m = money(r); const v = (x, f = inr) => (x == null ? '<span class="muted">—</span>' : f(x));
+      return `<tr style="cursor:pointer" data-m="${r.month}"><td>${monthLabel(r.month)}</td><td class="num">${r.new_users}</td><td class="num">${r.mau}</td><td class="num">${r.churn_pct == null ? "—" : r.churn_pct + "%"}</td><td class="num">${v(r.marketing_spend)}</td><td class="num">${v(r.installs, num)}</td><td class="num">${v(r.revenue)}</td><td class="num">${v(r.recurring_revenue)}</td><td class="num">${v(r.paying_customers, num)}</td><td class="num">${v(m.cac)}</td><td class="num">${v(m.cpi)}</td><td class="num">${v(m.arpu)}</td><td class="num">${m.conv || "—"}</td></tr>`; }).join("") + "</tbody>";
+  $("monthly").querySelectorAll("tbody tr").forEach((tr) => tr.onclick = () => { const r = monthly.find((x) => x.month === tr.dataset.m); $("finForm").month.value = r.month.slice(0, 7); fillFin(r); });
+}
+function fillFin(r) {
+  finMonth = r?.month || null;
+  for (const k of ["marketing_spend", "installs", "revenue", "recurring_revenue", "paying_customers", "new_paying_customers"]) $("finForm")[k].value = r?.[k] ?? "";
+  if (kpis) renderKpis();
+}
+$("finForm").month.addEventListener("change", (e) => { const m = e.target.value + "-01"; fillFin(monthly.find((x) => x.month === m) || { month: m }); });
+$("finSave").onclick = async () => {
+  const f = $("finForm"); if (!f.month.value) { $("finMsg").textContent = "Pick a month."; return; }
+  const body = { month: f.month.value + "-01" };
+  for (const k of ["marketing_spend", "installs", "revenue", "recurring_revenue", "paying_customers", "new_paying_customers"]) body[k] = f[k].value === "" ? null : Number(f[k].value);
+  if (Object.entries(body).some(([k, v]) => k !== "month" && v != null && (!isFinite(v) || v < 0))) { $("finMsg").textContent = "Numbers can't be negative."; return; }
+  $("finMsg").textContent = "Saving…";
+  const { error } = await db.rpc("admin_finance_save", { p: body });
+  $("finMsg").innerHTML = error ? `<span class="err">Couldn't save: ${esc(error.message)}</span>` : "Saved.";
+  if (!error) { finMonth = body.month; await loadAll(true); }
+};
+function renderNps() {
+  $("npsTable").innerHTML = `<thead><tr><th>When</th><th class="num">Score</th><th>Comment</th><th>Who</th></tr></thead><tbody>` +
+    (npsRows.length ? npsRows.map((r) => `<tr><td>${fmtDate(r.created_at)}</td><td class="num"><b style="color:${r.score >= 9 ? "var(--good)" : r.score <= 6 ? "var(--bad)" : "var(--text)"}">${r.score}</b> <span class="muted small">${r.score >= 9 ? "promoter" : r.score <= 6 ? "detractor" : "passive"}</span></td><td style="white-space:normal;min-width:220px">${esc(r.comment || "—")}</td><td>${esc(r.name || "")} <span class="muted small">${esc(r.email || "")}</span></td></tr>`).join("")
+      : `<tr><td colspan="4" class="muted">No answers yet. People are asked in the app after they've used it on 3 days and joined at least a week ago.</td></tr>`) + "</tbody>";
 }
 
 // ---------- Charts (plain SVG) ----------
