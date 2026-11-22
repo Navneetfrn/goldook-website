@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Goldook Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d; --surface: #161616; --surface2: #1f1f1f; --surface3: #2c2c2c;
+    --text: #f2ede4; --muted: #9a958c; --faint: #5e5a54;
+    --gold: #c9a24a; --goldDark: #8a6a1f;
+    --series-1: #c98500; --series-2: #3987e5;
+    --good: #0ca30c; --bad: #e66767;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "DM Sans", system-ui, sans-serif; }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button, select, input { font: inherit; color: var(--text); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--surface3); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { margin: 0; font: 700 20px "Playfair Display", serif; color: var(--gold); flex: 1; }
+  .btn { background: var(--surface2); border: 1px solid var(--surface3); border-radius: 9px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--gold); }
+  .btn.gold { background: linear-gradient(135deg, var(--goldDark), var(--gold)); color: #000; font-weight: 700; border: none; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .center { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 18px; }
+  .tile { background: var(--surface); border: 1px solid var(--surface3); border-radius: 12px; padding: 12px 14px; }
+  .tile .v { font-size: 24px; font-weight: 700; margin-top: 2px; }
+  .tile .l { color: var(--muted); font-size: 12px; }
+  .tile .s { color: var(--faint); font-size: 11px; }
+  h2 { font: 700 16px "DM Sans", sans-serif; margin: 22px 0 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  h2 .grow { flex: 1; }
+  .card { background: var(--surface); border: 1px solid var(--surface3); border-radius: 12px; padding: 14px; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+  .chart-title { font-weight: 700; font-size: 13px; margin: 0 0 2px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+  .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: 190px; overflow: visible; touch-action: pan-y; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface2); border: 1px solid var(--surface3); border-radius: 8px; padding: 6px 9px; font-size: 12px; white-space: nowrap; display: none; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .controls input, .controls select { background: var(--surface2); border: 1px solid var(--surface3); border-radius: 9px; padding: 7px 10px; }
+  .controls input[type=search] { min-width: 220px; flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--surface3); border-radius: 9px; overflow: hidden; }
+  .seg button { background: var(--surface2); border: none; padding: 6px 11px; cursor: pointer; }
+  .seg button.on { background: var(--gold); color: #000; font-weight: 700; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--surface3); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--surface2); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; background: var(--surface); position: sticky; top: 0; cursor: pointer; user-select: none; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th.sorted { color: var(--gold); }
+  tbody tr:hover { background: var(--surface); }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--surface3); }
+  .pill.new { background: #c9a24a33; color: var(--gold); }
+  .contact a { margin-right: 8px; }
+  .toast { position: fixed; right: 16px; bottom: 16px; background: var(--surface2); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 14px; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 20; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .err { color: var(--bad); }
+  @media (max-width: 600px) { .tile .v { font-size: 20px; } header h1 { font-size: 17px; } .controls input[type=search] { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Goldook Admin</h1>
+  <span id="who" class="muted small"></span>
+  <button id="notifyBtn" class="btn" hidden>🔔 Turn on alerts</button>
+  <button id="outBtn" class="btn" hidden>Sign out</button>
+</header>
+
+<div id="gate" class="center">
+  <p class="muted">Loading…</p>
+</div>
+
+<main id="main" class="wrap" hidden>
+  <div class="tiles" id="tiles"></div>
+
+  <h2><span class="grow">Growth &amp; activity</span>
+    <span class="seg" id="range">
+      <button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button><button data-d="365">1 year</button>
+    </span>
+  </h2>
+  <div class="charts">
+    <div class="card"><p class="chart-title">Total users</p><p class="muted small" style="margin:0 0 6px">Everyone signed up by the end of each day</p><div class="chart" id="cTotal"></div></div>
+    <div class="card"><p class="chart-title">New users per day</p><p class="muted small" style="margin:0 0 6px">Sign-ups on each day</p><div class="chart" id="cNew"></div></div>
+    <div class="card"><p class="chart-title">Daily active &amp; repeat users</p>
+      <div class="legend"><span><i style="background:var(--series-1)"></i>Active</span><span><i style="background:var(--series-2)"></i>Repeat (also active on an earlier day)</span></div>
+      <div class="chart" id="cActive"></div></div>
+  </div>
+  <details><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:8px"><table id="dailyTable"></table></div></details>
+
+  <h2><span class="grow">Users <span class="muted small" id="userCount"></span></span>
+    <button class="btn" id="csvBtn">Download CSV</button>
+  </h2>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search name, email or phone">
+    <label class="small muted">Sort
+      <select id="sort">
+        <option value="current_value">Highest portfolio value</option>
+        <option value="grams">Most grams</option>
+        <option value="items">Most items</option>
+        <option value="invested">Highest gold invested</option>
+        <option value="paid">Highest amount paid</option>
+        <option value="active_days">Most active days</option>
+        <option value="last_active">Recently active</option>
+        <option value="joined">Newest</option>
+      </select>
+    </label>
+    <label class="small muted">Min value ₹ <input type="number" id="minVal" min="0" step="10000" placeholder="0" style="width:120px"></label>
+    <label class="small muted"><input type="checkbox" id="withItems"> Only people with items</label>
+  </div>
+  <div class="tablewrap"><table id="users"></table></div>
+  <p class="muted small">Portfolio value = grams × latest 24K rate × carat/24 (<span id="rateNote"></span>). Sold or gifted items are left out.</p>
+
+  <h2><span class="grow">Loan applications <span class="muted small" id="leadCount"></span></span></h2>
+  <div class="tablewrap"><table id="leads"></table></div>
+
+  <p class="muted small" style="margin-top:24px">Personal data: open this page only for support or to contact people about their account. Don't share exports. Updates every minute while open.</p>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://lzupbmnpxgdpyrrxaejl.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dXBibW5weGdkcHlycnhhZWpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzMjYzNTUsImV4cCI6MjExMDkwMjM1NX0.N6bCc-A_V9vi59KCp6VThaFMYPwHpqbyKXbIMCEGCFs";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" },
+});
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const inr = (n) => "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN");
+const num = (n, d = 0) => (Number(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: d });
+const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
+let users = [], leads = [], daily = [], overview = null, days = 30;
+let sortKey = "current_value";
+let seen = null, started = false; // { users, leads } counts from the previous check, for alerts
+
+// ---------- Sign-in gate ----------
+async function start() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return showSignIn();
+  $("who").textContent = session.user.email || session.user.phone || "";
+  $("outBtn").hidden = false;
+  const { data: ok, error } = await db.rpc("is_admin");
+  if (error || !ok) {
+    $("gate").innerHTML = `<p>This account (${esc(session.user.email || "")}) isn't an admin.</p><button class="btn" onclick="signOut()">Use another account</button>`;
+    return;
+  }
+  if (started) return; started = true;
+  $("gate").hidden = true; $("main").hidden = false;
+  if ("Notification" in window && Notification.permission === "default") $("notifyBtn").hidden = false;
+  await loadAll();
+  setInterval(() => loadAll(true), 60_000);
+}
+function showSignIn() {
+  $("gate").innerHTML = `<p style="font:700 22px 'Playfair Display',serif;color:var(--gold);margin:0">Goldook Admin</p>
+    <p class="muted" style="margin:0">Admins only. Sign in with the Google account that runs Goldook.</p>
+    <button class="btn gold" id="g">Sign in with Google</button>`;
+  $("g").onclick = () => db.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+}
+async function signOut() { await db.auth.signOut(); location.reload(); }
+$("outBtn").onclick = signOut;
+$("notifyBtn").onclick = async () => { const p = await Notification.requestPermission(); if (p !== "default") $("notifyBtn").hidden = true; };
+
+// ---------- Data ----------
+async function loadAll(quiet) {
+  const [o, d, u, l] = await Promise.all([
+    db.rpc("admin_overview"), db.rpc("admin_daily", { p_days: days }), db.rpc("admin_users"), db.rpc("admin_leads", { p_limit: 200 }),
+  ]);
+  const err = [o, d, u, l].find((r) => r.error);
+  if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
+  overview = o.data; daily = d.data; users = u.data; leads = l.data;
+  alertIfNew();
+  renderTiles(); renderCharts(); renderUsers(); renderLeads();
+}
+async function loadDaily() {
+  const { data, error } = await db.rpc("admin_daily", { p_days: days });
+  if (!error) { daily = data; renderCharts(); }
+}
+
+// ---------- Alerts: new applications and new sign-ups ----------
+function alertIfNew() {
+  const now = { users: overview.total_users, leads: overview.total_leads };
+  if (seen) {
+    const msgs = [];
+    if (now.leads > seen.leads) { const n = now.leads - seen.leads; const x = leads[0]; msgs.push(`${n} new loan application${n > 1 ? "s" : ""}${x ? ` — ${x.name || x.email || ""} · ${x.lender}` : ""}`); }
+    if (now.users > seen.users) { const n = now.users - seen.users; msgs.push(`${n} new user${n > 1 ? "s" : ""} signed up`); }
+    if (msgs.length) notify(msgs.join("\n"));
+  }
+  seen = now;
+}
+function notify(text) {
+  const t = $("toast"); t.innerHTML = `<b style="color:var(--gold)">Goldook</b><br>${esc(text).replace(/\n/g, "<br>")}`; t.hidden = false;
+  setTimeout(() => (t.hidden = true), 12_000);
+  document.title = "● Goldook Admin";
+  if ("Notification" in window && Notification.permission === "granted") new Notification("Goldook", { body: text });
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) document.title = "Goldook Admin"; });
+
+// ---------- Tiles ----------
+function renderTiles() {
+  const o = overview;
+  const t = [
+    ["Total users", num(o.total_users), `${num(o.new_today)} new today`],
+    ["Active today", num(o.active_today), "opened the app today"],
+    ["Repeat today", num(o.repeat_today), "active today and on an earlier day"],
+    ["Active, last 7 days", num(o.active_7d), "different people"],
+    ["Items held", num(o.total_items), `${num(o.total_grams, 1)} g in total`],
+    ["Loan applications", num(o.total_leads), "all time"],
+  ];
+  $("tiles").innerHTML = t.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  $("rateNote").textContent = o.gold_24k_per_gram ? `24K ${inr(o.gold_24k_per_gram)}/g` : "no price yet";
+}
+
+// ---------- Charts (plain SVG) ----------
+// Axis top: 4 equal steps of 1, 2 or 5 × 10ⁿ, so every gridline is a whole number.
+function niceMax(v) { const raw = Math.max(1, v / 4); const p = Math.pow(10, Math.floor(Math.log10(raw))); const step = [1, 2, 5, 10].map((m) => m * p).find((x) => x >= raw); return step * 4; }
+function chart(el, rows, series, kind) {
+  const W = Math.max(280, el.clientWidth), H = 190, L = 38, R = series.length > 1 ? 52 : 14, T = 10, B = 24;
+  const n = rows.length, pw = W - L - R, ph = H - T - B;
+  const max = niceMax(Math.max(1, ...rows.flatMap((r) => series.map((s) => r[s.key]))));
+  const x = (i) => L + (n === 1 ? pw / 2 : (i * pw) / (n - 1));
+  const y = (v) => T + ph - (v / max) * ph;
+  let g = "";
+  for (let k = 0; k <= 4; k++) { const v = (max * k) / 4, yy = y(v); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#2c2c2c" stroke-width="1"/><text x="${L - 6}" y="${yy + 4}" text-anchor="end" font-size="10" fill="#8a857c">${num(v)}</text>`; }
+  const every = Math.ceil(n / Math.max(2, Math.floor(pw / 70)));
+  rows.forEach((r, i) => { if (i % every === 0 || i === n - 1) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#8a857c">${fmtDay(r.day)}</text>`; });
+  let marks = "";
+  if (kind === "bar") {
+    const bw = Math.max(2, Math.min(18, pw / n - 2));
+    rows.forEach((r, i) => { const v = r[series[0].key]; if (!v) return; const yy = y(v), h = T + ph - yy;
+      marks += `<path d="M${x(i) - bw / 2},${T + ph} v${-(h - Math.min(4, h))} q0,${-Math.min(4, h)} ${Math.min(4, bw / 2)},${-Math.min(4, h)} h${bw - 2 * Math.min(4, bw / 2)} q${Math.min(4, bw / 2)},0 ${Math.min(4, bw / 2)},${Math.min(4, h)} V${T + ph} Z" fill="${series[0].color}"/>`; });
+  } else {
+    series.forEach((s) => {
+      const pts = rows.map((r, i) => `${x(i)},${y(r[s.key])}`).join(" ");
+      marks += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      const last = rows[n - 1]; marks += `<circle cx="${x(n - 1)}" cy="${y(last[s.key])}" r="4" fill="${s.color}" stroke="#161616" stroke-width="2"/>`;
+      if (series.length > 1) marks += `<text x="${x(n - 1) + 8}" y="${y(last[s.key]) + 4}" font-size="11" fill="#c9c4bb">${esc(s.label)}</text>`;
+    });
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map((s) => s.label).join(", "))} by day">${g}${marks}<line class="cross" x1="0" x2="0" y1="${T}" y2="${T + ph}" stroke="#9a958c" stroke-width="1" visibility="hidden"/><rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent"/></svg><div class="tip"></div>`;
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), cross = el.querySelector(".cross");
+  const move = (e) => {
+    const b = svg.getBoundingClientRect(); const px = ((e.clientX - b.left) / b.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - L) / pw) * (n - 1))));
+    const r = rows[i]; cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    tip.innerHTML = `<b>${fmtDay(r.day)}</b>` + series.map((s) => `<br><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s.color};margin-right:5px"></span>${s.label}: <b>${num(r[s.key])}</b>`).join("");
+    tip.style.display = "block";
+    const left = (x(i) / W) * b.width; tip.style.left = Math.min(b.width - tip.offsetWidth, Math.max(0, left - tip.offsetWidth / 2)) + "px"; tip.style.top = "-6px";
+  };
+  svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", () => { tip.style.display = "none"; cross.setAttribute("visibility", "hidden"); });
+}
+function renderCharts() {
+  chart($("cTotal"), daily, [{ key: "total_users", label: "Total users", color: "var(--gold)" }], "line");
+  chart($("cNew"), daily, [{ key: "new_users", label: "New users", color: "var(--gold)" }], "bar");
+  chart($("cActive"), daily, [{ key: "active_users", label: "Active", color: "var(--series-1)" }, { key: "repeat_users", label: "Repeat", color: "var(--series-2)" }], "line");
+  $("dailyTable").innerHTML = `<thead><tr><th>Day</th><th class="num">New users</th><th class="num">Total users</th><th class="num">Active</th><th class="num">Repeat</th><th class="num">Items added</th></tr></thead><tbody>` +
+    [...daily].reverse().map((r) => `<tr><td>${fmtDay(r.day)}</td><td class="num">${r.new_users}</td><td class="num">${r.total_users}</td><td class="num">${r.active_users}</td><td class="num">${r.repeat_users}</td><td class="num">${r.items_added}</td></tr>`).join("") + "</tbody>";
+}
+let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => daily.length && renderCharts(), 150); });
+document.querySelectorAll("#range button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b)); days = +b.dataset.d; loadDaily();
+});
+
+// ---------- Users table ----------
+const COLS = [
+  ["name", "Name"], ["contact", "Contact", false], ["joined", "Joined"], ["last_active", "Last active"], ["active_days", "Active days", true],
+  ["items", "Items", true], ["grams", "Grams", true], ["invested", "Gold invested", true], ["paid", "Amount paid", true], ["current_value", "Value now", true], ["leads", "Loan apps", true],
+];
+function filtered() {
+  const q = $("q").value.trim().toLowerCase(), min = +$("minVal").value || 0, withItems = $("withItems").checked;
+  const list = users.filter((u) => (!q || [u.name, u.email, u.phone].some((v) => (v || "").toLowerCase().includes(q)))
+    && (Number(u.current_value) || 0) >= min && (!withItems || u.items > 0));
+  const k = sortKey;
+  return list.sort((a, b) => {
+    if (k === "name") return (a.name || "").localeCompare(b.name || "");
+    if (k === "joined" || k === "last_active") return String(b[k] || "").localeCompare(String(a[k] || ""));
+    return (Number(b[k]) || 0) - (Number(a[k]) || 0);
+  });
+}
+function contact(u) {
+  const phone = (u.phone || "").replace(/[^\d+]/g, "");
+  const wa = phone.replace(/^\+/, "");
+  return [u.email && `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>`,
+          phone && `<a href="tel:${esc(phone)}">${esc(u.phone)}</a>`,
+          phone && `<a href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`].filter(Boolean).join(" ") || '<span class="muted">—</span>';
+}
+function renderUsers() {
+  const list = filtered();
+  const today = overview?.today;
+  $("userCount").textContent = `· ${list.length} of ${users.length}`;
+  $("users").innerHTML = `<thead><tr>${COLS.map(([k, l, isNum]) => `<th data-k="${k}" class="${isNum ? "num" : ""} ${k === sortKey ? "sorted" : ""}">${l}${k === sortKey ? " ↓" : ""}</th>`).join("")}</tr></thead><tbody>` +
+    list.map((u) => `<tr>
+      <td>${esc(u.name || "—")}${today && String(u.joined).slice(0, 10) === today ? ' <span class="pill new">new</span>' : ""}</td>
+      <td class="contact">${contact(u)}</td>
+      <td>${fmtDate(u.joined)}</td><td>${u.last_active ? fmtDate(u.last_active) : "—"}</td>
+      <td class="num">${u.active_days}</td><td class="num">${u.items}</td><td class="num">${num(u.grams, 2)}</td>
+      <td class="num">${inr(u.invested)}</td><td class="num">${u.paid ? inr(u.paid) : "—"}</td><td class="num"><b>${inr(u.current_value)}</b></td><td class="num">${u.leads || "—"}</td>
+    </tr>`).join("") + (list.length ? "" : `<tr><td colspan="${COLS.length}" class="muted">No one matches.</td></tr>`) + "</tbody>";
+  $("users").querySelectorAll("th").forEach((th) => { if (th.dataset.k !== "contact") th.onclick = () => { sortKey = th.dataset.k; const opt = [...$("sort").options].find((o) => o.value === sortKey); if (opt) $("sort").value = sortKey; renderUsers(); }; });
+}
+["q", "minVal", "withItems"].forEach((id) => $(id).addEventListener("input", renderUsers));
+$("sort").onchange = () => { sortKey = $("sort").value; renderUsers(); };
+$("csvBtn").onclick = () => {
+  const head = ["Name", "Email", "Phone", "Joined", "Last active", "Active days", "Items", "Grams", "Gold invested", "Amount paid", "Value now", "Loan apps"];
+  const rows = filtered().map((u) => [u.name, u.email, u.phone, String(u.joined).slice(0, 10), u.last_active, u.active_days, u.items, u.grams, u.invested, u.paid, u.current_value, u.leads]);
+  const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = `goldook-users-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+};
+
+// ---------- Leads table ----------
+function renderLeads() {
+  $("leadCount").textContent = `· ${leads.length}`;
+  $("leads").innerHTML = `<thead><tr><th>When</th><th>Lender</th><th>Status</th><th>Name</th><th>Contact</th><th class="num">Amount asked</th></tr></thead><tbody>` +
+    (leads.length ? leads.map((l) => `<tr><td>${new Date(l.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td><td>${esc(l.lender)}</td><td><span class="pill">${esc(l.status)}</span></td><td>${esc(l.name || "—")}</td><td class="contact">${contact(l)}</td><td class="num">${l.payload?.amount ? inr(l.payload.amount) : "—"}</td></tr>`).join("")
+      : `<tr><td colspan="6" class="muted">No applications yet. Loans are compare-only in phase 1, so this stays empty until Apply is switched on.</td></tr>`) + "</tbody>";
+}
+
+db.auth.onAuthStateChange((event) => { if (event === "SIGNED_IN" && $("main").hidden) start(); });
+start();
+</script>
+</body>
+</html>
