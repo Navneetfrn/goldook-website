@@ -137,21 +137,23 @@
     <input type="search" id="q" placeholder="Search name, email or phone">
     <label class="small muted">Sort
       <select id="sort">
-        <option value="current_value">Highest portfolio value</option>
-        <option value="grams">Most grams</option>
-        <option value="items">Most items</option>
-        <option value="invested">Highest gold invested</option>
-        <option value="paid">Highest amount paid</option>
+        <option value="tier">Highest holding range</option>
         <option value="active_days">Most active days</option>
         <option value="last_active">Recently active</option>
         <option value="joined">Newest</option>
       </select>
     </label>
-    <label class="small muted">Min value ₹ <input type="number" id="minVal" min="0" step="10000" placeholder="0" style="width:120px"></label>
-    <label class="small muted"><input type="checkbox" id="withItems"> Only people with items</label>
+    <label class="small muted">Holding range
+      <select id="tierFilter">
+        <option value="">All</option>
+        <option value="5">₹1 crore+</option><option value="4">₹25 lakh – 1 crore</option><option value="3">₹5 – 25 lakh</option>
+        <option value="2">₹1 – 5 lakh</option><option value="1">Under ₹1 lakh</option><option value="0">No holdings yet</option>
+        <option value="3+">₹5 lakh and above</option>
+      </select>
+    </label>
   </div>
   <div class="tablewrap"><table id="users"></table></div>
-  <p class="muted small">Portfolio value = grams × latest 24K rate × carat/24 (<span id="rateNote"></span>). Sold or gifted items are left out.</p>
+  <p class="muted small">Holding range = today's value of the gold a person holds (sold or gifted items left out). By design, this page never shows anyone's items, weights, amounts or bills.</p>
 
   <h2><span class="grow">Loan applications <span class="muted small" id="leadCount"></span></span></h2>
   <div class="tablewrap"><table id="leads"></table></div>
@@ -177,7 +179,8 @@ const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { da
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 let users = [], leads = [], daily = [], overview = null, days = 30, kpis = null, monthly = [], npsRows = [], finMonth = null;
-let sortKey = "current_value";
+let sortKey = "tier";
+const TIERS = ["No holdings yet", "Under ₹1 lakh", "₹1 – 5 lakh", "₹5 – 25 lakh", "₹25 lakh – 1 crore", "₹1 crore+"];
 let seen = null, started = false; // { users, leads } counts from the previous check, for alerts
 
 // ---------- Sign-in gate ----------
@@ -251,11 +254,13 @@ function renderTiles() {
     ["Active today", num(o.active_today), "opened the app today"],
     ["Repeat today", num(o.repeat_today), "active today and on an earlier day"],
     ["Active, last 7 days", num(o.active_7d), "different people"],
-    ["Items held", num(o.total_items), `${num(o.total_grams, 1)} g in total`],
+    ["Items held", num(o.total_items), "across all users"],
     ["Loan applications", num(o.total_leads), "all time"],
   ];
   $("tiles").innerHTML = t.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
-  $("rateNote").textContent = o.gold_24k_per_gram ? `24K ${inr(o.gold_24k_per_gram)}/g` : "no price yet";
+  // How many people in each holding range.
+  const counts = TIERS.map((_, i) => Number(o.tiers?.[i] || 0));
+  $("tiles").innerHTML += `<div class="tile" style="grid-column:1/-1"><div class="l">People by holding range</div><div style="display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:6px">${TIERS.map((t, i) => `<span class="small"><b style="font-size:16px">${num(counts.at(i))}</b> <span class="muted">${t}</span></span>`).reverse().join("")}</div></div>`;
 }
 
 // ---------- Success metrics ----------
@@ -393,12 +398,12 @@ document.querySelectorAll("#range button").forEach((b) => b.onclick = () => {
 // ---------- Users table ----------
 const COLS = [
   ["name", "Name"], ["contact", "Contact", false], ["joined", "Joined"], ["last_active", "Last active"], ["active_days", "Active days", true],
-  ["items", "Items", true], ["grams", "Grams", true], ["invested", "Gold invested", true], ["paid", "Amount paid", true], ["current_value", "Value now", true], ["leads", "Loan apps", true],
+  ["tier", "Holding range", true], ["leads", "Loan apps", true],
 ];
 function filtered() {
-  const q = $("q").value.trim().toLowerCase(), min = +$("minVal").value || 0, withItems = $("withItems").checked;
+  const q = $("q").value.trim().toLowerCase(), tf = $("tierFilter").value;
   const list = users.filter((u) => (!q || [u.name, u.email, u.phone].some((v) => (v || "").toLowerCase().includes(q)))
-    && (Number(u.current_value) || 0) >= min && (!withItems || u.items > 0));
+    && (tf === "" || (tf === "3+" ? u.tier >= 3 : u.tier === Number(tf))));
   const k = sortKey;
   return list.sort((a, b) => {
     if (k === "name") return (a.name || "").localeCompare(b.name || "");
@@ -422,16 +427,15 @@ function renderUsers() {
       <td>${esc(u.name || "—")}${today && String(u.joined).slice(0, 10) === today ? ' <span class="pill new">new</span>' : ""}</td>
       <td class="contact">${contact(u)}</td>
       <td>${fmtDate(u.joined)}</td><td>${u.last_active ? fmtDate(u.last_active) : "—"}</td>
-      <td class="num">${u.active_days}</td><td class="num">${u.items}</td><td class="num">${num(u.grams, 2)}</td>
-      <td class="num">${inr(u.invested)}</td><td class="num">${u.paid ? inr(u.paid) : "—"}</td><td class="num"><b>${inr(u.current_value)}</b></td><td class="num">${u.leads || "—"}</td>
+      <td class="num">${u.active_days}</td><td class="num"><span class="pill ${u.tier >= 3 ? "new" : ""}">${TIERS.at(u.tier) || "—"}</span></td><td class="num">${u.leads || "—"}</td>
     </tr>`).join("") + (list.length ? "" : `<tr><td colspan="${COLS.length}" class="muted">No one matches.</td></tr>`) + "</tbody>";
   $("users").querySelectorAll("th").forEach((th) => { if (th.dataset.k !== "contact") th.onclick = () => { sortKey = th.dataset.k; const opt = [...$("sort").options].find((o) => o.value === sortKey); if (opt) $("sort").value = sortKey; renderUsers(); }; });
 }
-["q", "minVal", "withItems"].forEach((id) => $(id).addEventListener("input", renderUsers));
+$("q").addEventListener("input", renderUsers); $("tierFilter").addEventListener("change", renderUsers);
 $("sort").onchange = () => { sortKey = $("sort").value; renderUsers(); };
 $("csvBtn").onclick = () => {
-  const head = ["Name", "Email", "Phone", "Joined", "Last active", "Active days", "Items", "Grams", "Gold invested", "Amount paid", "Value now", "Loan apps"];
-  const rows = filtered().map((u) => [u.name, u.email, u.phone, String(u.joined).slice(0, 10), u.last_active, u.active_days, u.items, u.grams, u.invested, u.paid, u.current_value, u.leads]);
+  const head = ["Name", "Email", "Phone", "Joined", "Last active", "Active days", "Holding range", "Loan apps"];
+  const rows = filtered().map((u) => [u.name, u.email, u.phone, String(u.joined).slice(0, 10), u.last_active, u.active_days, TIERS.at(u.tier), u.leads]);
   const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   a.download = `goldook-users-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
