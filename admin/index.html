@@ -168,6 +168,16 @@
   <div class="tablewrap"><table id="lawyers"></table></div>
   <p class="muted small">Check each advocate's enrolment with their State Bar Council before approving. Approved lawyers see only the jobs you assign to them.</p>
 
+  <h2><span class="grow">Services: polishing &amp; repair bookings <span class="muted small" id="bookCount"></span></span>
+    <span class="small muted">Booking fee ₹<input id="bookFee" type="number" min="0" max="5000" step="1" style="width:72px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px">
+    <button class="btn" id="bookFeeSave">Save</button></span></h2>
+  <div class="tablewrap"><table id="bookings"></table></div>
+  <p class="muted small">Customers pay the booking fee to Goldook in the app; that unlocks the jeweller's address and phone and emails the jeweller. They agree the work and price with the jeweller directly. Mark paid only if a customer paid another way.</p>
+
+  <h2><span class="grow">Services: jewellers <span class="muted small" id="partnerCount"></span></span></h2>
+  <div class="tablewrap"><table id="partners"></table></div>
+  <p class="muted small">Visit or call each shop and check its BIS registration / GSTIN before approving. Only approved shops are listed to customers.</p>
+
   <p class="muted small" style="margin-top:24px">Personal data: open this page only for support or to contact people about their account. Don't share exports. Updates every minute while open.</p>
 </main>
 
@@ -230,6 +240,7 @@ async function loadAll(quiet) {
   if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
   overview = o.data; daily = d.data; users = u.data; leads = l.data; kpis = k.data; monthly = m.data; npsRows = n.data;
   alertIfNew();
+  loadServices();
   loadLegal(); // first, so a problem in another section never hides the legal work
   renderTiles(); renderKpis(); renderMonthly(); renderNps(); renderCharts(); renderUsers(); renderLeads();
 }
@@ -538,6 +549,79 @@ $("feeSave").onclick = async () => {
   const { error } = await db.rpc("admin_legal_fee", { p_pct: v });
   if (error) return alert(error.message);
   alert(`Platform fee set to ${v}%. It applies to fees lawyers submit from now on.`);
+};
+
+// ---------- Services (jewellers & bookings) ----------
+let bookRows = [], partnerRows = [];
+const BOOK_LABEL = { awaiting_payment: "Not paid yet", confirmed: "Paid · booked", done: "Done", cancelled: "Cancelled" };
+const SVC = { polishing: "Polishing", repair: "Repair" };
+async function loadServices() {
+  const [b, p, f] = await Promise.all([db.rpc("admin_bookings", { p_limit: 300 }), db.rpc("admin_partners"), db.rpc("service_booking_fee")]);
+  if (b.error || p.error) { $("bookings").innerHTML = `<tr><td class="err">Couldn't load: ${esc((b.error || p.error).message)}</td></tr>`; return; }
+  bookRows = b.data; partnerRows = p.data;
+  if (document.activeElement !== $("bookFee")) $("bookFee").value = f.data ?? "";
+  renderBookings(); renderPartners();
+}
+function renderBookings() {
+  const paid = bookRows.filter((x) => x.status === "confirmed" || x.status === "done");
+  $("bookCount").textContent = `· ${bookRows.length} · ${inr(paid.reduce((s, x) => s + Number(x.fee || 0), 0))} in fees`;
+  $("bookings").innerHTML = `<thead><tr><th>When</th><th>Status</th><th>Service</th><th>Customer</th><th>Jeweller</th><th class="num">Fee</th><th>Action</th></tr></thead><tbody>` +
+    (bookRows.length ? bookRows.map((r) => {
+      let act = "";
+      if (r.status === "awaiting_payment") act = `<button class="btn" data-book="confirmed" data-id="${r.id}">Mark paid</button> <button class="btn" data-book="cancelled" data-id="${r.id}">Cancel</button>`;
+      else if (r.status === "confirmed") act = `<button class="btn" data-book="cancelled" data-id="${r.id}">Cancel</button><div class="small muted">ref ${esc(r.payment_ref || "—")}</div>`;
+      else if (r.payment_ref) act = `<span class="small muted">ref ${esc(r.payment_ref)}</span>`;
+      return `<tr><td>${fmtDate(r.created_at)}</td><td><span class="pill">${BOOK_LABEL[r.status] || esc(r.status)}</span></td>
+        <td>${SVC[r.service] || esc(r.service)}<div class="small muted">${esc(r.item || "")}${r.preferred_date ? " · " + esc(r.preferred_date) : ""}</div></td>
+        <td>${esc(r.customer_name || "—")}<div class="small muted">${esc(r.contact || "")} ${esc(r.customer_email || "")}</div></td>
+        <td>${esc(r.shop_name)}<div class="small muted">${esc(r.city || "")}</div></td><td class="num">${inr(r.fee)}</td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="7" class="muted">No bookings yet.</td></tr>`) + "</tbody>";
+}
+function renderPartners() {
+  const pend = partnerRows.filter((x) => x.status === "pending").length;
+  $("partnerCount").textContent = `· ${partnerRows.length}${pend ? ` · ${pend} waiting for approval` : ""}`;
+  $("partners").innerHTML = `<thead><tr><th>Applied</th><th>Status</th><th>Shop</th><th>Contact</th><th>Address</th><th>Services</th><th>BIS / GSTIN</th><th>Action</th></tr></thead><tbody>` +
+    (partnerRows.length ? partnerRows.map((x) => {
+      const b = (st, label, cls = "") => `<button class="btn ${cls}" data-partner="${st}" data-id="${x.user_id}">${label}</button>`;
+      const act = x.status === "approved" ? b("suspended", "Suspend") : x.status === "pending" ? b("approved", "Approve", "gold") + " " + b("rejected", "Reject") : b("approved", "Approve");
+      const price = [x.polish_from != null ? `polish from ${inr(x.polish_from)}` : "", x.repair_from != null ? `repair from ${inr(x.repair_from)}` : ""].filter(Boolean).join(" · ");
+      return `<tr><td>${fmtDate(x.created_at)}</td><td><span class="pill">${esc(x.status)}</span></td>
+        <td>${esc(x.shop_name)}<div class="small muted">${esc(x.owner_name)}</div></td>
+        <td class="contact">${esc(x.phone)}<div class="small muted">${esc(x.email)}</div></td>
+        <td>${esc(x.address)}<div class="small muted">${esc([x.area, x.city].filter(Boolean).join(", "))}</div></td>
+        <td>${(x.services || []).map((s) => SVC[s] || esc(s)).join(", ")}<div class="small muted">${price}</div>${x.about ? `<details><summary class="small">About</summary><div class="small">${esc(x.about)}</div></details>` : ""}</td>
+        <td>${esc(x.bis_reg || "—")}<div class="small muted">${esc(x.gstin || "—")}</div></td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="8" class="muted">No jewellers yet. They apply from the app: Stores → Services → Are you a jeweller?</td></tr>`) + "</tbody>";
+}
+async function svcNotify(event, id) { try { await db.functions.invoke("services", { body: { action: "notify", event, id } }); } catch { /* email optional */ } }
+document.addEventListener("click", async (e) => {
+  const t = e.target;
+  if (t.dataset?.book) {
+    const st = t.dataset.book, id = t.dataset.id;
+    let ref = null;
+    if (st === "confirmed") { ref = prompt("Payment reference (how the customer paid):", "manual"); if (ref === null) return; }
+    else if (!confirm("Cancel this booking? Refund any fee yourself if it was paid.")) return;
+    const { error } = await db.rpc("admin_booking_mark", { p_id: id, p_status: st, p_ref: ref });
+    if (error) return alert(error.message);
+    if (st === "confirmed") await svcNotify("booking_confirmed", id);
+    await loadServices();
+  } else if (t.dataset?.partner) {
+    const st = t.dataset.partner, id = t.dataset.id;
+    let note = null;
+    if (st === "rejected" || st === "suspended") { note = prompt("Note shown to the jeweller (optional):", ""); if (note === null) return; }
+    else if (!confirm("Approve this shop? It will be listed to customers.")) return;
+    const { error } = await db.rpc("admin_partner_status", { p_user: id, p_status: st, p_note: note || null });
+    if (error) return alert(error.message);
+    if (st === "approved") await svcNotify("partner_approved", id);
+    await loadServices();
+  }
+});
+$("bookFeeSave").onclick = async () => {
+  const v = Number($("bookFee").value);
+  if (!(v >= 0 && v <= 5000)) return alert("Enter a fee between 0 and 5000.");
+  const { error } = await db.rpc("admin_booking_fee", { p_fee: v });
+  if (error) return alert(error.message);
+  alert(v ? `Booking fee set to ₹${v} for new bookings.` : "Booking is now free: new bookings are confirmed straight away.");
 };
 
 function renderLeads() {
