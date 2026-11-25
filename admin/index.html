@@ -158,6 +158,16 @@
   <h2><span class="grow">Loan applications <span class="muted small" id="leadCount"></span></span></h2>
   <div class="tablewrap"><table id="leads"></table></div>
 
+  <h2 id="providers-h"><span class="grow">Service providers <span class="muted small" id="provCount"></span></span>
+    <span class="small"><select id="provKind" style="background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px;color:inherit">
+      <option value="">Everyone</option><option value="lawyer">Lawyers</option><option value="jeweller">Jewellers</option></select>
+    <select id="provStatus" style="background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px;color:inherit">
+      <option value="">Any status</option><option value="pending">Waiting for approval</option><option value="approved">Approved</option><option value="suspended">Suspended</option><option value="rejected">Rejected</option></select>
+    <input id="provQ" placeholder="Search name, city, phone" style="width:170px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 8px;color:inherit"></span></h2>
+  <div class="tiles" id="provTiles"></div>
+  <div class="tablewrap"><table id="providers"></table></div>
+  <p class="muted small">Every lawyer and partner jeweller in one list. Open = waiting on them (deeds to upload, paid bookings to do). Money is what customers paid Goldook through the app. Approve, reject or suspend in the sections below. Providers work from goldook.com/partners (or from the app).</p>
+
   <h2><span class="grow">Goldook Legal: deed requests <span class="muted small" id="legalCount"></span></span>
     <span class="small muted">Platform fee <input id="feePct" type="number" min="0" max="90" step="1" style="width:64px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px"> %
     <button class="btn" id="feeSave">Save</button></span></h2>
@@ -240,6 +250,7 @@ async function loadAll(quiet) {
   if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
   overview = o.data; daily = d.data; users = u.data; leads = l.data; kpis = k.data; monthly = m.data; npsRows = n.data;
   alertIfNew();
+  loadProviders();
   loadServices();
   loadLegal(); // first, so a problem in another section never hides the legal work
   renderTiles(); renderKpis(); renderMonthly(); renderNps(); renderCharts(); renderUsers(); renderLeads();
@@ -540,7 +551,7 @@ document.addEventListener("click", async (e) => {
     const { error } = await db.rpc("admin_lawyer_status", { p_user: id, p_status: st, p_note: note || null });
     if (error) return alert(error.message);
     if (st === "approved") await legalNotify("lawyer_approved", id);
-    await loadLegal();
+    await loadLegal(); loadProviders();
   }
 });
 $("feeSave").onclick = async () => {
@@ -550,6 +561,42 @@ $("feeSave").onclick = async () => {
   if (error) return alert(error.message);
   alert(`Platform fee set to ${v}%. It applies to fees lawyers submit from now on.`);
 };
+
+// ---------- Service providers (all professions) ----------
+let provRows = [];
+const KIND = { lawyer: "⚖️ Lawyer", jeweller: "💍 Jeweller" };
+async function loadProviders() {
+  const { data, error } = await db.rpc("admin_providers");
+  if (error) { $("providers").innerHTML = `<tr><td class="err">Couldn't load: ${esc(error.message)}</td></tr>`; return; }
+  provRows = data || []; renderProviders();
+}
+function renderProviders() {
+  const k = $("provKind").value, s = $("provStatus").value, q = $("provQ").value.trim().toLowerCase();
+  const rows = provRows.filter((r) => (!k || r.kind === k) && (!s || r.status === s) && (!q || [r.name, r.business, r.city, r.phone, r.email].join(" ").toLowerCase().includes(q)));
+  const sum = (f, list = provRows) => list.reduce((a, r) => a + Number(r[f] || 0), 0);
+  const appr = (kind) => provRows.filter((r) => r.kind === kind && r.status === "approved").length;
+  const pend = provRows.filter((r) => r.status === "pending").length;
+  $("provCount").textContent = `· ${provRows.length}${pend ? ` · ${pend} waiting for approval` : ""}`;
+  $("provTiles").innerHTML = [
+    ["Approved lawyers", num(appr("lawyer")), `${num(provRows.filter((r) => r.kind === "lawyer").length)} signed up`],
+    ["Approved jewellers", num(appr("jeweller")), `${num(provRows.filter((r) => r.kind === "jeweller").length)} signed up`],
+    ["Open jobs", num(sum("jobs_open")), "deeds to upload + bookings to do"],
+    ["Jobs done", num(sum("jobs_done")), "all time"],
+    ["Customers paid", inr(sum("customer_paid")), "for provider work"],
+    ["Goldook earned", inr(sum("goldook_earned")), "platform fees + booking fees"],
+    ["Owed to lawyers", inr(sum("payout_due")), "paid by customers, not yet paid out"],
+  ].map(([l, v, sub]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join("");
+  $("providers").innerHTML = `<thead><tr><th>Type</th><th>Status</th><th>Name</th><th>Contact</th><th>City</th><th class="num">Open</th><th class="num">Done</th><th class="num">Customers paid</th><th class="num">Goldook earned</th><th class="num">Owed / paid out</th><th>Last job</th><th>Last sign-in</th></tr></thead><tbody>` +
+    (rows.length ? rows.map((r) => `<tr><td>${KIND[r.kind] || esc(r.kind)}</td><td><span class="pill${r.status === "pending" ? " new" : ""}">${esc(r.status)}</span></td>
+      <td>${esc(r.name)}<div class="small muted">${esc(r.business || "")}</div></td>
+      <td class="contact">${esc(r.phone)}<div class="small muted">${esc(r.email)}</div></td><td>${esc(r.city || "—")}</td>
+      <td class="num">${num(r.jobs_open)}</td><td class="num">${num(r.jobs_done)}</td><td class="num">${inr(r.customer_paid)}</td><td class="num">${inr(r.goldook_earned)}</td>
+      <td class="num">${r.kind === "lawyer" ? `${inr(r.payout_due)} / ${inr(r.paid_out)}` : "—"}</td>
+      <td>${r.last_job_at ? fmtDate(r.last_job_at) : "—"}</td><td>${r.last_sign_in ? fmtDate(r.last_sign_in) : "—"}</td></tr>`).join("")
+      : `<tr><td colspan="12" class="muted">${provRows.length ? "No one matches these filters." : "No service providers yet. Lawyers and jewellers apply at goldook.com/partners or in the app."}</td></tr>`) + "</tbody>";
+}
+["provKind", "provStatus"].forEach((id) => $(id).addEventListener("change", renderProviders));
+$("provQ").addEventListener("input", renderProviders);
 
 // ---------- Services (jewellers & bookings) ----------
 let bookRows = [], partnerRows = [];
@@ -613,7 +660,7 @@ document.addEventListener("click", async (e) => {
     const { error } = await db.rpc("admin_partner_status", { p_user: id, p_status: st, p_note: note || null });
     if (error) return alert(error.message);
     if (st === "approved") await svcNotify("partner_approved", id);
-    await loadServices();
+    await loadServices(); loadProviders();
   }
 });
 $("bookFeeSave").onclick = async () => {
