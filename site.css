@@ -208,3 +208,10 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .btn, a.card { transition: none; } html { scroll-behavior: auto; } }
+
+/* Permanent safety note in every page footer */
+.safety { display: flex; gap: 8px; align-items: flex-start; margin: 34px 0 0; padding: 12px 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.03); font-size: 12px; line-height: 1.55; color: #a39b86; }
+.safety svg { flex-shrink: 0; margin-top: 2px; color: var(--gold); }
+.safety b { color: #d9d1bd; font-weight: 600; }
+.safety a { color: var(--gold-l); text-decoration: underline; }
+.safety + .fine { margin-top: 18px; }

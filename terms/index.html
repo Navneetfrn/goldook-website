@@ -8,6 +8,8 @@
 <meta property="og:type" content="website"><meta property="og:url" content="https://goldook.com/terms/">
 <meta property="og:image" content="https://goldook.com/img/app-portfolio.webp">
 <meta name="theme-color" content="#14110c">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://lzupbmnpxgdpyrrxaejl.supabase.co; form-action 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="icon" type="image/png" href="/app/favicon.png"><link rel="apple-touch-icon" href="/img/goldook-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -39,13 +41,10 @@
     <div><h4>Product</h4><a href="/services/">Services</a><a href="/app/">Open in browser</a><a href="/#download">Download the app</a><a href="/app/?install=1">Desktop app</a></div>
     <div><h4>Company</h4><a href="/about/">About us</a><a href="/about/#mission">Our mission</a><a href="/contact/">Contact</a></div>
     <div><h4>Professionals</h4><a href="/for-professionals/">Lawyers &amp; jewellers</a><a href="/partners/">Goldook Pro sign-in</a></div>
-    <div><h4>Legal</h4><a href="/privacy/">Privacy Policy</a><a href="/terms/">Terms of Service</a><a href="/delete-account/">Delete your account</a></div>
+    <div><h4>Legal</h4><a href="/privacy/">Privacy Policy</a><a href="/terms/">Terms of Service</a><a href="/delete-account/">Delete your account</a><a href="/security/">Security</a></div>
   </div>
+  <p class="safety"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> <span><b>Your safety:</b> this site and the Goldook app use encrypted HTTPS connections, and your gold records are visible only to you. Goldook will never ask for your PIN, sign-in code (OTP), password or card details by call, SMS, email or WhatsApp. If someone does, don't share them and tell us at <a href="mailto:support@goldook.com">support@goldook.com</a>. <a href="/security/">How we keep you safe</a></span></p>
   <p class="fine">© 2026 Goldook. Goldook does not lend money and never takes your gold. Prices in the app are estimates, not offers.</p>
 </div></footer>
-<script>
-(function(){var b=document.querySelector('.menu-btn'),n=document.getElementById('nav');if(b)b.addEventListener('click',function(){var o=n.classList.toggle('open');b.setAttribute('aria-expanded',o)});
-var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'}):null;
-document.querySelectorAll('.reveal').forEach(function(el){io?io.observe(el):el.classList.add('in')});})();
-</script>
+<script src="/site.js" defer></script>
 </body></html>
