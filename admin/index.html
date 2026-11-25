@@ -158,6 +158,16 @@
   <h2><span class="grow">Loan applications <span class="muted small" id="leadCount"></span></span></h2>
   <div class="tablewrap"><table id="leads"></table></div>
 
+  <h2><span class="grow">Goldook Legal: deed requests <span class="muted small" id="legalCount"></span></span>
+    <span class="small muted">Platform fee <input id="feePct" type="number" min="0" max="90" step="1" style="width:64px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px"> %
+    <button class="btn" id="feeSave">Save</button></span></h2>
+  <div class="tablewrap"><table id="legal"></table></div>
+  <p class="muted small">Flow: requested → assign a lawyer → lawyer uploads the legal copy and fee → customer pays in the app (or mark paid here if they paid another way) → pay the lawyer their payout by UPI and mark it paid out with the reference.</p>
+
+  <h2><span class="grow">Goldook Legal: lawyers <span class="muted small" id="lawyerCount"></span></span></h2>
+  <div class="tablewrap"><table id="lawyers"></table></div>
+  <p class="muted small">Check each advocate's enrolment with their State Bar Council before approving. Approved lawyers see only the jobs you assign to them.</p>
+
   <p class="muted small" style="margin-top:24px">Personal data: open this page only for support or to contact people about their account. Don't share exports. Updates every minute while open.</p>
 </main>
 
@@ -220,6 +230,7 @@ async function loadAll(quiet) {
   if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
   overview = o.data; daily = d.data; users = u.data; leads = l.data; kpis = k.data; monthly = m.data; npsRows = n.data;
   alertIfNew();
+  loadLegal(); // first, so a problem in another section never hides the legal work
   renderTiles(); renderKpis(); renderMonthly(); renderNps(); renderCharts(); renderUsers(); renderLeads();
 }
 async function loadDaily() {
@@ -442,6 +453,93 @@ $("csvBtn").onclick = () => {
 };
 
 // ---------- Leads table ----------
+// ---------- Goldook Legal ----------
+let legalRows = [], lawyerRows = [];
+const STATUS_LABEL = { requested: "New", assigned: "With lawyer", completed: "Awaiting payment", paid: "Paid · pay lawyer", paid_out: "Done", cancelled: "Cancelled" };
+async function loadLegal() {
+  const [r, l, f] = await Promise.all([db.rpc("admin_legal", { p_limit: 300 }), db.rpc("admin_lawyers"), db.rpc("legal_fee_pct")]);
+  if (r.error || l.error) { $("legal").innerHTML = `<tr><td class="err">Couldn't load: ${esc((r.error || l.error).message)}</td></tr>`; return; }
+  legalRows = r.data; lawyerRows = l.data;
+  if (document.activeElement !== $("feePct")) $("feePct").value = f.data ?? "";
+  renderLegal(); renderLawyers();
+}
+function party(p) { return p ? `${esc(p.name)}, ${esc(p.relationWord)} ${esc(p.guardianName)}, ${esc(p.age)} · ${esc(p.address)}` : "—"; }
+function renderLegal() {
+  const approved = lawyerRows.filter((x) => x.status === "approved");
+  const open = legalRows.filter((x) => !["paid_out", "cancelled"].includes(x.status)).length;
+  $("legalCount").textContent = `· ${open} open of ${legalRows.length}`;
+  $("legal").innerHTML = `<thead><tr><th>When</th><th>Status</th><th>Customer</th><th>Deed</th><th>Lawyer</th><th class="num">Fee</th><th class="num">Goldook</th><th class="num">Lawyer gets</th><th>Action</th></tr></thead><tbody>` +
+    (legalRows.length ? legalRows.map((r) => {
+      const d = r.details || {};
+      const deed = `<details><summary>${esc(d.item || "item")} · ${esc(r.state || "")}</summary><div class="small">Donor: ${party(d.donor)}<br>Donee: ${party(d.donee)}${d.relationship ? ` (donor's ${esc(d.relationship)})` : ""}<br>Place: ${esc(d.place || "—")}</div></details>`;
+      let act = "";
+      if (r.status === "requested" || r.status === "assigned") {
+        act = `<select data-assign="${r.id}"><option value="">${r.lawyer_id ? "Reassign…" : "Assign lawyer…"}</option>${approved.map((x) => `<option value="${x.user_id}">${esc(x.full_name)}${x.city ? " · " + esc(x.city) : ""}</option>`).join("")}</select> <button class="btn" data-mark="cancelled" data-id="${r.id}">Cancel</button>`;
+      } else if (r.status === "completed") {
+        act = `<button class="btn" data-mark="paid" data-id="${r.id}">Mark paid</button> <button class="btn" data-mark="cancelled" data-id="${r.id}">Cancel</button>`;
+      } else if (r.status === "paid") {
+        act = `<button class="btn gold" data-mark="paid_out" data-id="${r.id}">Mark paid out</button><div class="small muted">UPI: ${esc(r.lawyer_upi || "not given")}</div>`;
+      } else if (r.status === "paid_out") act = `<span class="small muted">ref ${esc(r.payout_ref || "—")}</span>`;
+      return `<tr><td>${fmtDate(r.created_at)}</td><td><span class="pill">${STATUS_LABEL[r.status] || esc(r.status)}</span></td>
+        <td>${esc(r.customer_name || "—")}<div class="small muted">${esc(r.contact || "")} ${esc(r.customer_email || "")}</div></td>
+        <td>${deed}</td><td>${esc(r.lawyer_name || "—")}</td>
+        <td class="num">${r.fee ? inr(r.fee) : "—"}</td><td class="num">${r.platform_fee != null ? inr(r.platform_fee) : "—"}</td><td class="num">${r.payout != null ? inr(r.payout) : "—"}</td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="9" class="muted">No requests yet.</td></tr>`) + "</tbody>";
+}
+function renderLawyers() {
+  const pend = lawyerRows.filter((x) => x.status === "pending").length;
+  $("lawyerCount").textContent = `· ${lawyerRows.length}${pend ? ` · ${pend} waiting for approval` : ""}`;
+  $("lawyers").innerHTML = `<thead><tr><th>Applied</th><th>Status</th><th>Name</th><th>Enrolment</th><th>Contact</th><th>Serves</th><th>UPI</th><th>Action</th></tr></thead><tbody>` +
+    (lawyerRows.length ? lawyerRows.map((x) => {
+      const b = (st, label, cls = "") => `<button class="btn ${cls}" data-law="${st}" data-id="${x.user_id}">${label}</button>`;
+      const act = x.status === "approved" ? b("suspended", "Suspend") : x.status === "pending" ? b("approved", "Approve", "gold") + " " + b("rejected", "Reject") : b("approved", "Approve");
+      return `<tr><td>${fmtDate(x.created_at)}</td><td><span class="pill">${esc(x.status)}</span></td><td>${esc(x.full_name)}</td>
+        <td>${esc(x.enrolment_no)}<div class="small muted">${esc(x.bar_council)}</div></td>
+        <td class="contact">${esc(x.phone)}<div class="small muted">${esc(x.email)}</div></td><td>${esc([x.city, x.states].filter(Boolean).join(" · ") || "—")}</td>
+        <td>${esc(x.upi_id || "—")}</td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="8" class="muted">No lawyers yet. Advocates apply from the app: Settings → Goldook Legal for lawyers.</td></tr>`) + "</tbody>";
+}
+async function legalNotify(event, id) { try { await db.functions.invoke("legal-notify", { body: { event, id } }); } catch { /* email optional */ } }
+document.addEventListener("change", async (e) => {
+  const id = e.target.dataset?.assign;
+  if (!id || !e.target.value) return;
+  const name = e.target.selectedOptions[0].textContent;
+  if (!confirm(`Assign this request to ${name}? They'll get an email.`)) { e.target.value = ""; return; }
+  const { error } = await db.rpc("admin_legal_assign", { p_req: id, p_lawyer: e.target.value });
+  if (error) return alert(error.message);
+  await legalNotify("assigned", id); await loadLegal();
+});
+document.addEventListener("click", async (e) => {
+  const t = e.target;
+  if (t.dataset?.mark) {
+    const st = t.dataset.mark, id = t.dataset.id;
+    let ref = null;
+    if (st === "paid") { ref = prompt("Payment reference (how the customer paid):", "manual"); if (ref === null) return; }
+    if (st === "paid_out") { ref = prompt("Payout reference (UPI / bank transaction id):"); if (!ref) return; }
+    if (st === "cancelled" && !confirm("Cancel this request?")) return;
+    const { error } = await db.rpc("admin_legal_mark", { p_req: id, p_status: st, p_ref: ref });
+    if (error) return alert(error.message);
+    if (st === "paid" || st === "paid_out") await legalNotify(st, id);
+    await loadLegal();
+  } else if (t.dataset?.law) {
+    const st = t.dataset.law, id = t.dataset.id;
+    let note = null;
+    if (st === "rejected" || st === "suspended") { note = prompt("Note shown to the lawyer (optional):", ""); if (note === null) return; }
+    else if (!confirm("Approve this advocate? Check their enrolment first.")) return;
+    const { error } = await db.rpc("admin_lawyer_status", { p_user: id, p_status: st, p_note: note || null });
+    if (error) return alert(error.message);
+    if (st === "approved") await legalNotify("lawyer_approved", id);
+    await loadLegal();
+  }
+});
+$("feeSave").onclick = async () => {
+  const v = Number($("feePct").value);
+  if (!(v >= 0 && v <= 90)) return alert("Enter a percentage between 0 and 90.");
+  const { error } = await db.rpc("admin_legal_fee", { p_pct: v });
+  if (error) return alert(error.message);
+  alert(`Platform fee set to ${v}%. It applies to fees lawyers submit from now on.`);
+};
+
 function renderLeads() {
   $("leadCount").textContent = `· ${leads.length}`;
   $("leads").innerHTML = `<thead><tr><th>When</th><th>Lender</th><th>Status</th><th>Name</th><th>Contact</th><th class="num">Amount asked</th></tr></thead><tbody>` +
