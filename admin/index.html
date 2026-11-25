@@ -158,6 +158,12 @@
   <h2><span class="grow">Loan applications <span class="muted small" id="leadCount"></span></span></h2>
   <div class="tablewrap"><table id="leads"></table></div>
 
+  <h2><span class="grow">Website enquiries <span class="muted small" id="enqCount"></span></span>
+    <span class="small"><select id="enqShow" style="background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px;color:inherit">
+      <option value="open">New and replied</option><option value="new">New only</option><option value="all">All</option></select></span></h2>
+  <div class="tablewrap"><table id="enquiries"></table></div>
+  <p class="muted small">Messages from the contact form on goldook.com/contact. "Reply by email" opens your email app and marks it replied.</p>
+
   <h2 id="providers-h"><span class="grow">Service providers <span class="muted small" id="provCount"></span></span>
     <span class="small"><select id="provKind" style="background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px;color:inherit">
       <option value="">Everyone</option><option value="lawyer">Lawyers</option><option value="jeweller">Jewellers</option></select>
@@ -250,6 +256,7 @@ async function loadAll(quiet) {
   if (err) { if (!quiet) $("tiles").innerHTML = `<p class="err">Couldn't load: ${esc(err.error.message)}</p>`; return; }
   overview = o.data; daily = d.data; users = u.data; leads = l.data; kpis = k.data; monthly = m.data; npsRows = n.data;
   alertIfNew();
+  loadEnquiries();
   loadProviders();
   loadServices();
   loadLegal(); // first, so a problem in another section never hides the legal work
@@ -561,6 +568,42 @@ $("feeSave").onclick = async () => {
   if (error) return alert(error.message);
   alert(`Platform fee set to ${v}%. It applies to fees lawyers submit from now on.`);
 };
+
+// ---------- Website enquiries ----------
+let enqRows = [], enqSeen = null;
+const TOPIC = { general: "General", support: "Account help", partner: "Lawyer / jeweller", business: "Business", press: "Press", privacy: "Privacy / data" };
+async function loadEnquiries() {
+  const { data, error } = await db.rpc("admin_enquiries", { p_limit: 300 });
+  if (error) { $("enquiries").innerHTML = `<tr><td class="err">Couldn't load: ${esc(error.message)}</td></tr>`; return; }
+  enqRows = data || [];
+  const newest = enqRows.filter((r) => r.status === "new").length;
+  if (enqSeen !== null && newest > enqSeen) notify(`${newest - enqSeen} new website enquir${newest - enqSeen > 1 ? "ies" : "y"}`);
+  enqSeen = newest; renderEnquiries();
+}
+function renderEnquiries() {
+  const show = $("enqShow").value;
+  const rows = enqRows.filter((r) => show === "all" || (show === "new" ? r.status === "new" : r.status !== "closed"));
+  const fresh = enqRows.filter((r) => r.status === "new").length;
+  $("enqCount").textContent = `· ${enqRows.length}${fresh ? ` · ${fresh} new` : ""}`;
+  $("enquiries").innerHTML = `<thead><tr><th>When</th><th>Status</th><th>From</th><th>About</th><th>Message</th><th>Action</th></tr></thead><tbody>` +
+    (rows.length ? rows.map((r) => {
+      const subject = encodeURIComponent("Re: your message to Goldook");
+      const quote = encodeURIComponent(`\n\n---\nOn ${new Date(r.created_at).toLocaleDateString("en-IN")} you wrote:\n${r.message}`);
+      const act = `<a class="btn" data-enq-reply="${r.id}" href="mailto:${esc(r.email)}?subject=${subject}&body=${quote}">Reply by email</a> ` +
+        (r.status === "closed" ? `<button class="btn" data-enq="new" data-id="${r.id}">Reopen</button>` : `<button class="btn" data-enq="closed" data-id="${r.id}">Close</button>`);
+      return `<tr><td>${fmtDate(r.created_at)}</td><td><span class="pill${r.status === "new" ? " new" : ""}">${esc(r.status)}</span></td>
+        <td>${esc(r.name)}<div class="small muted">${esc(r.email)}${r.phone ? " · " + esc(r.phone) : ""}</div></td>
+        <td>${TOPIC[r.topic] || esc(r.topic)}</td><td style="white-space:pre-wrap;min-width:260px;max-width:520px">${esc(r.message)}</td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="muted">${enqRows.length ? "Nothing here with this filter." : "No enquiries yet."}</td></tr>`) + "</tbody>";
+}
+$("enqShow").addEventListener("change", renderEnquiries);
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-enq],[data-enq-reply]"); if (!t) return;
+  const id = t.dataset.enqReply || t.dataset.id, st = t.dataset.enqReply ? "replied" : t.dataset.enq;
+  const { error } = await db.rpc("admin_enquiry_mark", { p_id: id, p_status: st, p_note: null });
+  if (error) return alert(error.message);
+  await loadEnquiries();
+});
 
 // ---------- Service providers (all professions) ----------
 let provRows = [];
