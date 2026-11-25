@@ -7,7 +7,13 @@
     <title>Goldook</title>
     <link rel="icon" type="image/png" href="/app/favicon.png" />
     <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />
-    <script type="module" crossorigin src="/app/assets/index-00L5eBcf.js"></script>
+    <!-- Installable on computers and phones from the browser (goldook.com/app) -->
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Goldook" />
+    <script type="module" crossorigin src="/app/assets/index-BR12empp.js"></script>
   </head>
   <body>
     <div id="root"></div>
