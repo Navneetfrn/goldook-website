@@ -174,7 +174,7 @@
   <div class="tablewrap"><table id="providers"></table></div>
   <p class="muted small">Every lawyer and partner jeweller in one list. Open = waiting on them (deeds to upload, paid bookings to do). Money is what customers paid Goldook through the app. Approve, reject or suspend in the sections below. Providers work from goldook.com/partners (or from the app).</p>
 
-  <h2><span class="grow">Goldook Legal: deed requests <span class="muted small" id="legalCount"></span></span>
+  <h2><span class="grow">Goldook Legal: gift deeds &amp; Wills <span class="muted small" id="legalCount"></span></span>
     <span class="small muted">Platform fee <input id="feePct" type="number" min="0" max="90" step="1" style="width:64px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px"> %
     <button class="btn" id="feeSave">Save</button></span></h2>
   <div class="tablewrap"><table id="legal"></table></div>
@@ -500,7 +500,9 @@ function renderLegal() {
   $("legal").innerHTML = `<thead><tr><th>When</th><th>Status</th><th>Customer</th><th>Deed</th><th>Lawyer</th><th class="num">Fee</th><th class="num">Goldook</th><th class="num">Lawyer gets</th><th>Action</th></tr></thead><tbody>` +
     (legalRows.length ? legalRows.map((r) => {
       const d = r.details || {};
-      const deed = `<details><summary>${esc(d.item || "item")} · ${esc(r.state || "")}</summary><div class="small">Donor: ${party(d.donor)}<br>Donee: ${party(d.donee)}${d.relationship ? ` (donor's ${esc(d.relationship)})` : ""}<br>Place: ${esc(d.place || "—")}</div></details>`;
+      const deed = r.kind === "will"
+        ? `<details><summary><b>Will</b> · ${(d.items || []).length} items · ${esc(r.state || "")}${d.register ? " · <b>register</b>" : ""}</summary><div class="small">Testator: ${party(d.testator)}<br>Executor: ${d.executor ? esc(d.executor.name) : "—"}<br>Nominees: ${(d.nominees || []).map((n) => `${esc(n.name)} ${esc(n.share)}%`).join(", ") || "—"}${d.wishes ? `<br>Wishes: ${esc(d.wishes)}` : ""}</div></details>`
+        : `<details><summary>Gift deed · ${esc(d.item || "item")} · ${esc(r.state || "")}</summary><div class="small">Donor: ${party(d.donor)}<br>Donee: ${party(d.donee)}${d.relationship ? ` (donor's ${esc(d.relationship)})` : ""}<br>Place: ${esc(d.place || "—")}</div></details>`;
       let act = "";
       if (r.status === "requested" || r.status === "assigned") {
         act = `<select data-assign="${r.id}"><option value="">${r.lawyer_id ? "Reassign…" : "Assign lawyer…"}</option>${approved.map((x) => `<option value="${x.user_id}">${esc(x.full_name)}${x.city ? " · " + esc(x.city) : ""}</option>`).join("")}</select> <button class="btn" data-mark="cancelled" data-id="${r.id}">Cancel</button>`;
