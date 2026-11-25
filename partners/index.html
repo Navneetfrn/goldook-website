@@ -5,12 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1E2326" />
     <meta name="robots" content="noindex" />
-    <title>Goldook for professionals</title>
-    <link rel="icon" type="image/png" href="/partners/favicon.png" />
+    <meta name="description" content="Goldook Pro: the work app for lawyers and jewellers who serve Goldook customers." />
+    <!-- Installable like an app: home-screen icon, opens full screen without the browser bar -->
+    <link rel="manifest" href="/partners/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Goldook Pro" />
+    <meta name="application-name" content="Goldook Pro" />
+    <title>Goldook Pro</title>
+    <link rel="icon" type="image/png" href="/partners/pro-favicon.png" />
+    <link rel="apple-touch-icon" href="/partners/pro-apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <style>html,body,#root{margin:0;height:100%}body{background:#F5F3EF;font-family:'DM Sans',sans-serif}button,input,textarea,select{font-family:inherit}</style>
-    <script type="module" crossorigin src="/partners/assets/partners-ClM8Rdnj.js"></script>
+    <style>
+      html, body, #root { margin: 0; height: 100%; }
+      body { background: #E7E2D8; font-family: 'DM Sans', sans-serif; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+      #root { -webkit-tap-highlight-color: transparent; }
+      #root img { -webkit-touch-callout: none; -webkit-user-drag: none; }
+      #root button { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+      button, input, textarea, select { font-family: inherit; }
+      button:active { opacity: 0.85; }
+      /* Phone: the app fills the screen. */
+      .gp-stage { height: 100%; }
+      .gp-bezel { height: 100%; }
+      .gp-phone { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+      .gp-hint { display: none; }
+      /* Computer: a phone-sized window in the middle. */
+      @media (min-width: 640px) and (min-height: 620px) {
+        .gp-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;
+          background: radial-gradient(circle at 30% 20%, #F3EEE4, #DCD5C8); }
+        .gp-bezel { height: auto; padding: 10px; border-radius: 38px; background: #1E2326; box-shadow: 0 30px 60px rgba(0,0,0,0.25); }
+        .gp-phone { width: 400px; height: min(860px, calc(100vh - 100px)); border-radius: 28px; transform: translateZ(0); }
+        .gp-hint { display: block; margin: 16px 0 0; color: #6B7072; font-size: 12px; }
+      }
+      .gp-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); border-top-color: #C9A84C; animation: gp-spin 0.9s linear infinite; }
+      @keyframes gp-spin { to { transform: rotate(360deg); } }
+    </style>
+    <script type="module" crossorigin src="/partners/assets/partners-DF-rmX9o.js"></script>
   </head>
   <body>
     <div id="root"></div>
