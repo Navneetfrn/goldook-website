@@ -210,8 +210,11 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .btn, a.card { transition: none; } html { scroll-behavior: auto; } }
 
 /* Permanent safety note in every page footer */
-.safety { display: flex; gap: 8px; align-items: flex-start; margin: 34px 0 0; padding: 12px 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.03); font-size: 12px; line-height: 1.55; color: #a39b86; }
-.safety svg { flex-shrink: 0; margin-top: 2px; color: var(--gold); }
-.safety b { color: #d9d1bd; font-weight: 600; }
-.safety a { color: var(--gold-l); text-decoration: underline; }
+.safety { margin: 34px 0 0; padding: 16px 14px 12px; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.03); text-align: center; }
+.safe-icons { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px 6px; }
+.safe-icons li { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; line-height: 1.25; color: #d9d1bd; cursor: help; }
+.safe-icons svg { width: 40px; height: 40px; padding: 10px; border-radius: 12px; color: var(--gold); background: rgba(201,168,76,.08); border: 1px solid rgba(201,168,76,.22); box-sizing: border-box; }
+.safe-warn { margin: 14px 0 0; font-size: 11.5px; line-height: 1.5; color: #a39b86; }
+.safe-warn a { color: var(--gold-l); text-decoration: underline; }
+@media (max-width: 560px) { .safe-icons { grid-template-columns: repeat(3, 1fr); } }
 .safety + .fine { margin-top: 18px; }
