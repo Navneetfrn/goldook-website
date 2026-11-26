@@ -284,3 +284,17 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 .promise-list svg { color: #7bd389; flex-shrink: 0; margin-top: 2px; }
 .promise-sec { padding-bottom: 0; }
 @media (max-width: 720px) { .promise-list { grid-template-columns: 1fr; } .promise { padding: 24px 20px; } }
+
+/* Guides: data tables, related links, language switch, Hindi typography */
+.data { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 16px; background: var(--white); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.data th { text-align: left; font-size: 12.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--cream2); padding: 12px 14px; }
+.data td { padding: 12px 14px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.data td:last-child { text-align: right; } .data thead + tbody td:last-child { text-align: left; }
+.related { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+.related li::before { content: "→ "; color: var(--gold-ink); }
+.lang-switch { border: 1px solid rgba(201,168,76,.5); border-radius: 999px; padding: 4px 12px !important; font-weight: 600; }
+.lang-hi, .lang-hi input, .lang-hi select, .lang-hi button { font-family: "Noto Sans Devanagari", "DM Sans", system-ui, sans-serif; }
+.lang-hi h1, .lang-hi h2, .lang-hi h3 { font-family: "Noto Serif Devanagari", "Playfair Display", Georgia, serif; line-height: 1.3; letter-spacing: 0; }
+.lang-hi .kicker, .lang-hi .k { letter-spacing: .04em; }
+.guide-grid .card h3 { font-size: 19px; }
+@media (max-width: 720px) { .related { grid-template-columns: 1fr; } .data { font-size: 14.5px; } }
