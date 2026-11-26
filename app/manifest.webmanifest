@@ -25,5 +25,11 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "lang": "en-IN",
+  "categories": [
+    "finance",
+    "lifestyle",
+    "utilities"
   ]
 }
