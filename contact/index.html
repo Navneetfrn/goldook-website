@@ -35,7 +35,7 @@
     <label>Message<textarea name="message" required minlength="5" maxlength="2000" rows="6"></textarea></label>
     <label class="hp" aria-hidden="true">Leave this empty<input name="website" tabindex="-1" autocomplete="off"></label>
     <p class="small muted">We use these details only to reply to you. See our <a href="/privacy/">privacy policy</a>.</p>
-    
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAGTsYwOkzIh6vIbS" data-theme="light" data-size="flexible" data-action="contact"></div>
     <button class="btn btn-gold" type="submit">Send message</button>
     <p class="form-msg" role="status" aria-live="polite"></p>
   </form>
@@ -47,7 +47,7 @@
     
   </aside>
 </div></section>
-<script src="/contact.js" defer></script></main>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script><script src="/contact.js" defer></script></main>
 <footer class="foot"><div class="wrap">
   <div class="foot-grid">
     <div class="foot-brand"><a class="brand" href="/"><img src="/img/goldook-icon.png" alt="" width="34" height="34"><span>Goldook</span></a>
