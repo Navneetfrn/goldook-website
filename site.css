@@ -210,13 +210,14 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 .foot { background: var(--ink); color: #bdb5a2; padding: 64px 0 30px; font-size: 15px; }
 .foot a { color: #e9e3d4; text-decoration: none; }
 .foot a:hover { color: var(--gold-l); }
-.foot-grid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 30px; }
+.foot-grid { display: grid; grid-template-columns: 1.6fr repeat(5, 1fr); gap: 26px; }
 .foot-grid h4 { color: #fff; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; margin: 6px 0 14px; }
 .foot-grid > div > a:not(.brand) { display: block; padding: 4px 0; }
 .foot-brand p { margin: 14px 0 0; max-width: 320px; }
 .foot .muted { color: #8f8775; }
 .fine { border-top: 1px solid rgba(255,255,255,.08); margin-top: 44px; padding-top: 22px; font-size: 13px; color: #8f8775; }
-@media (max-width: 900px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
+@media (max-width: 1060px) { .foot-grid { grid-template-columns: repeat(3, 1fr); } .foot-brand { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
 
 /* Gentle reveal on scroll (skipped for people who prefer less motion) */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
@@ -232,3 +233,34 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 .safe-warn a { color: var(--gold-l); text-decoration: underline; }
 @media (max-width: 560px) { .safe-icons { grid-template-columns: repeat(3, 1fr); } }
 .safety + .fine { margin-top: 18px; }
+
+/* ---------- guides: FAQ, gold rate table, loan calculator ---------- */
+.narrow { max-width: 820px; }
+.faq { display: grid; gap: 10px; margin-top: 8px; }
+.faq details { background: var(--white); border: 1px solid var(--line); border-radius: 14px; padding: 0 18px; }
+.sec.alt .faq details { background: var(--white); }
+.faq summary { cursor: pointer; list-style: none; padding: 16px 28px 16px 0; font-weight: 600; color: var(--ink); position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 0; top: 13px; font-size: 22px; color: var(--gold-ink); }
+.faq details[open] summary::after { content: "\2212"; }
+.faq details p { margin: 0 0 16px; color: var(--muted); line-height: 1.65; }
+.faq a, .prose a:not(.btn) { color: var(--gold-ink); text-decoration: underline; }
+.rate-card, .calc { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 8px 20px 18px; margin-bottom: 14px; box-shadow: 0 10px 30px rgba(20,17,12,.06); }
+.rate-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.rate-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 14px 8px 10px; border-bottom: 1px solid var(--line); }
+.rate-table td { padding: 14px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.rate-table td:not(:first-child) { font-weight: 700; color: var(--ink); }
+.rate-table tr:last-child td { border-bottom: 0; }
+.rate-note { margin: 12px 0 0; }
+.cta-inline { display: flex; gap: 18px; align-items: center; justify-content: space-between; margin: 28px 0 40px; padding: 20px 22px; border-radius: 16px; background: linear-gradient(135deg, #1b160d, #2a2213); color: #e9e1cc; }
+.cta-inline h3 { color: #fff; margin: 0 0 4px; } .cta-inline p { margin: 0; color: #cfc6af; }
+.calc { padding: 20px; }
+.calc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.calc label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.calc input, .calc select { font: inherit; font-size: 16px; font-weight: 500; color: var(--ink); padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbf9f4; width: 100%; box-sizing: border-box; }
+.calc input:focus, .calc select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.calc-out { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0 10px; }
+.calc-out div { background: #f6f1e4; border-radius: 12px; padding: 12px; }
+.calc-out span { display: block; font-size: 12px; color: var(--muted); } .calc-out b { font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.steps-list li { margin-bottom: 12px; }
+@media (max-width: 720px) { .calc-grid { grid-template-columns: 1fr 1fr; } .calc-out { grid-template-columns: 1fr 1fr; } .cta-inline { flex-direction: column; align-items: flex-start; } }

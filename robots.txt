@@ -1,4 +1,5 @@
 User-agent: *
 Disallow: /admin/
 Disallow: /partners/
+
 Sitemap: https://goldook.com/sitemap.xml
