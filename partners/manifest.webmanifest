@@ -1,7 +1,7 @@
 {
   "name": "Goldook Pro",
   "short_name": "Goldook Pro",
-  "description": "The work app for lawyers and jewellers who serve Goldook customers.",
+  "description": "The work app for the lawyers, jewellers and agents who serve Goldook customers.",
   "id": "/partners/",
   "start_url": "/partners/",
   "scope": "/partners/",

@@ -298,3 +298,4 @@ a.card:hover { transform: translateY(-3px); border-color: #dccb98; box-shadow: 0
 .lang-hi .kicker, .lang-hi .k { letter-spacing: .04em; }
 .guide-grid .card h3 { font-size: 19px; }
 @media (max-width: 720px) { .related { grid-template-columns: 1fr; } .data { font-size: 14.5px; } }
+.pro-grid { align-items: start; } .pro-grid .card.pro h2 { font-size: 26px; }

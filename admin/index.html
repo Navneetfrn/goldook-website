@@ -198,6 +198,12 @@
   <div class="tablewrap"><table id="partners"></table></div>
   <p class="muted small">Visit or call each shop and check its BIS registration / GSTIN before approving. Only approved shops are listed to customers.</p>
 
+  <h2><span class="grow">Agents <span class="muted small" id="agentCount"></span></span>
+    <span class="small muted">Commission <input id="agentPct" type="number" min="0" max="50" step="0.5" style="width:60px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;padding:4px 6px">% of Goldook's income
+    <button class="btn" id="agentPctSave">Save</button></span></h2>
+  <div class="tablewrap"><table id="agents"></table></div>
+  <p class="muted small">Agents help people join with their link or code (goldook.com/app/?agent=CODE). When those customers pay for a legal service or a jeweller booking, the agent earns the % above of Goldook's own income from it (the platform fee, or the booking fee); refunded bookings are reversed automatically. Pay the "to pay" amount to the agent's UPI, then press <b>Mark paid</b> with the UPI reference. Deduct TDS where the law requires (ask your accountant). Check each agent's identity before approving; approving gives them their code.</p>
+
   <p class="muted small" style="margin-top:24px">Personal data: open this page only for support or to contact people about their account. Don't share exports. Updates every minute while open.</p>
 </main>
 
@@ -319,6 +325,7 @@ async function loadAll(quiet) {
   loadEnquiries();
   loadProviders();
   loadServices();
+  loadAgents();
   loadLegal(); // first, so a problem in another section never hides the legal work
   renderTiles(); renderKpis(); renderMonthly(); renderNps(); renderCharts(); renderUsers(); renderLeads();
 }
@@ -416,7 +423,7 @@ function renderKpis() {
 }
 function renderMonthly() {
   const f = $("finForm");
-  if (!f.month.value) { const r = monthly[0]; f.month.value = r.month.slice(0, 7); fillFin(r); }
+  if (!f.month.value && monthly[0]) { const r = monthly[0]; f.month.value = r.month.slice(0, 7); fillFin(r); }
   $("monthly").innerHTML = `<thead><tr><th>Month</th><th class="num">New users</th><th class="num">MAU</th><th class="num">Churn</th><th class="num">Marketing</th><th class="num">Installs</th><th class="num">Revenue</th><th class="num">MRR</th><th class="num">Paying</th><th class="num">CAC</th><th class="num">CPI</th><th class="num">ARPU</th><th class="num">Conversion</th></tr></thead><tbody>` +
     monthly.map((r) => { const m = money(r); const v = (x, f = inr) => (x == null ? '<span class="muted">—</span>' : f(x));
       return `<tr style="cursor:pointer" data-m="${r.month}"><td>${monthLabel(r.month)}</td><td class="num">${r.new_users}</td><td class="num">${r.mau}</td><td class="num">${r.churn_pct == null ? "—" : r.churn_pct + "%"}</td><td class="num">${v(r.marketing_spend)}</td><td class="num">${v(r.installs, num)}</td><td class="num">${v(r.revenue)}</td><td class="num">${v(r.recurring_revenue)}</td><td class="num">${v(r.paying_customers, num)}</td><td class="num">${v(m.cac)}</td><td class="num">${v(m.cpi)}</td><td class="num">${v(m.arpu)}</td><td class="num">${m.conv || "—"}</td></tr>`; }).join("") + "</tbody>";
@@ -774,6 +781,57 @@ $("bookFeeSave").onclick = async () => {
   const { error } = await db.rpc("admin_booking_fee", { p_fee: v });
   if (error) return alert(error.message);
   alert(v ? `Booking fee set to ₹${v} for new bookings.` : "Booking is now free: new bookings are confirmed straight away.");
+};
+
+// ---------- Agents ----------
+let agentRows = [];
+const inr2 = (n) => "₹" + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+async function loadAgents() {
+  const [a, p] = await Promise.all([db.rpc("admin_agents"), db.rpc("admin_agent_settings")]);
+  if (a.error) { $("agents").innerHTML = `<tr><td class="err">Couldn't load: ${esc(a.error.message)}</td></tr>`; return; }
+  agentRows = a.data;
+  if (document.activeElement !== $("agentPct")) $("agentPct").value = p.data ?? "";
+  const pend = agentRows.filter((x) => x.status === "pending").length;
+  const owed = agentRows.reduce((s, x) => s + Number(x.pending || 0), 0);
+  $("agentCount").textContent = `· ${agentRows.length}${pend ? ` · ${pend} waiting for approval` : ""}${owed ? ` · ${inr2(owed)} to pay` : ""}`;
+  $("agents").innerHTML = `<thead><tr><th>Applied</th><th>Status</th><th>Agent</th><th>Contact</th><th>Code</th><th class="num">People</th><th class="num">Paying</th><th class="num">Earned</th><th class="num">To pay</th><th class="num">Paid</th><th>Action</th></tr></thead><tbody>` +
+    (agentRows.length ? agentRows.map((x) => {
+      const b = (st, label, cls = "") => `<button class="btn ${cls}" data-agent="${st}" data-id="${x.user_id}">${label}</button>`;
+      let act = x.status === "approved" ? b("suspended", "Suspend") : x.status === "pending" ? b("approved", "Approve", "gold") + " " + b("rejected", "Reject") : b("approved", "Approve");
+      if (Number(x.pending) > 0) act += ` <button class="btn gold" data-agentpay="${x.user_id}" data-amt="${x.pending}" data-upi="${esc(x.upi_id || "")}" data-name="${esc(x.full_name)}">Mark paid</button>`;
+      return `<tr><td>${fmtDate(x.created_at)}</td><td><span class="pill">${esc(x.status)}</span></td>
+        <td>${esc(x.full_name)}<div class="small muted">${esc(x.city)}</div>${x.about ? `<details><summary class="small">About</summary><div class="small">${esc(x.about)}</div></details>` : ""}${x.admin_note ? `<div class="small muted">Note: ${esc(x.admin_note)}</div>` : ""}</td>
+        <td class="contact">${esc(x.phone)}<div class="small muted">${esc(x.email)}</div><div class="small muted">UPI ${esc(x.upi_id || "not given")}</div></td>
+        <td>${x.code ? `<b>${esc(x.code)}</b>` : "—"}</td><td class="num">${x.people}</td><td class="num">${x.paying}</td>
+        <td class="num">${inr2(x.earned)}</td><td class="num"><b>${inr2(x.pending)}</b></td><td class="num">${inr2(x.paid)}</td><td>${act}</td></tr>`;
+    }).join("") : `<tr><td colspan="11" class="muted">No agents yet. They apply at goldook.com/partners (choose "Agent") or in the app: Settings → Security &amp; Privacy → Goldook agent.</td></tr>`) + "</tbody>";
+}
+document.addEventListener("click", async (e) => {
+  const t = e.target;
+  if (t.dataset?.agent) {
+    const st = t.dataset.agent, id = t.dataset.id;
+    let note = null;
+    if (st === "rejected" || st === "suspended") { note = prompt("Note shown to the agent (optional):", ""); if (note === null) return; }
+    else if (!confirm("Approve this agent? They get their code and can start adding people.")) return;
+    const { error } = await db.rpc("admin_agent_status", { p_user: id, p_status: st, p_note: note || null });
+    if (error) return alert(error.message);
+    if (st === "approved") await svcNotify("agent_approved", id);
+    await loadAgents();
+  } else if (t.dataset?.agentpay) {
+    const ref = prompt(`Pay ${inr2(t.dataset.amt)} to ${t.dataset.name}${t.dataset.upi ? ` (UPI ${t.dataset.upi})` : ""} first. Then enter the UPI / bank reference:`, "");
+    if (!ref) return;
+    const { data, error } = await db.rpc("admin_agent_mark_paid", { p_user: t.dataset.agentpay, p_ref: ref });
+    if (error) return alert(error.message);
+    alert(`Marked ${inr2(data)} as paid.`);
+    await loadAgents();
+  }
+});
+$("agentPctSave").onclick = async () => {
+  const v = Number($("agentPct").value);
+  if (!(v >= 0 && v <= 50)) return alert("Enter a % between 0 and 50.");
+  const { error } = await db.rpc("admin_agent_pct", { p_pct: v });
+  if (error) return alert(error.message);
+  alert(`Agents now earn ${v}% of Goldook's income on new payments. Earlier commissions keep their old %.`);
 };
 
 function renderLeads() {
