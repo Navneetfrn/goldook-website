@@ -320,7 +320,7 @@ function showSignIn() {
     <button class="btn gold" id="g">Sign in with Google</button>`;
   $("g").onclick = () => db.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
 }
-async function signOut() { await db.auth.signOut(); location.reload(); }
+async function signOut() { await db.auth.signOut({ scope: "local" }); location.reload(); } // this browser only; other devices stay signed in
 $("outBtn").onclick = signOut;
 $("notifyBtn").onclick = async () => { const p = await Notification.requestPermission(); if (p !== "default") $("notifyBtn").hidden = true; };
 
